@@ -17,8 +17,8 @@ public class GameManager : MonoBehaviour
 
     // ─── Inspector – Grid settings ────────────────────────────────────────────
     [Header("Grid Settings")]
-    public int gridWidth  = 10;
-    public int gridHeight = 20;
+    public int gridWidth  = 30;
+    public int gridHeight = 60;
 
     [Header("Safe Area")]
     [Tooltip("Pixels reserved at the bottom for UI / ads.")]
@@ -140,7 +140,7 @@ public class GameManager : MonoBehaviour
         // Take the LARGER value so both axes fit without overflow.
         // (On a very wide screen, height dominates; on a very tall screen, width dominates.)
         float camSize = Mathf.Max(camSizeForWidth, camSizeForHeight);
-        cam.orthographicSize = camSize;
+        cam.orthographicSize = camSize + 2;
 
         // ── Camera & grid positions ───────────────────────────────────────────
         // Camera centred at (0, 0).
@@ -273,8 +273,35 @@ public class GameManager : MonoBehaviour
 
         SpriteRenderer bgSr = playAreaBg.AddComponent<SpriteRenderer>();
         bgSr.sprite = whiteSprite;
-        bgSr.color = new Color(0f, 0f, 0f, 0.4f);
+        bgSr.color = new Color(0f, 0f, 0f, 0.75f);
         bgSr.sortingOrder = -15;
+
+        // 3. Play Area Border
+        GameObject borderObj = new GameObject("PlayAreaBorder");
+        borderObj.transform.SetParent(gridObj.transform);
+        
+        LineRenderer lr = borderObj.AddComponent<LineRenderer>();
+        lr.positionCount = 5;
+        lr.startWidth = 0.05f; // Boundary line thickness
+        lr.endWidth = 0.05f;
+        lr.material = new Material(Shader.Find("Sprites/Default")); // Basic unlit material
+        lr.startColor = Color.white;
+        lr.endColor = Color.white;
+        lr.sortingOrder = -5; // Draws on top of the grid lines
+        lr.useWorldSpace = true;
+
+        float left = GridOrigin.x;
+        float right = GridOrigin.x + gridWidth * CellSize;
+        float bottom = GridOrigin.y;
+        float top = GridOrigin.y + gridHeight * CellSize;
+
+        lr.SetPositions(new Vector3[] {
+            new Vector3(left, bottom, 0f),
+            new Vector3(left, top, 0f),
+            new Vector3(right, top, 0f),
+            new Vector3(right, bottom, 0f),
+            new Vector3(left, bottom, 0f) // Close the loop
+        });
     }
 
 

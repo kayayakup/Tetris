@@ -1,64 +1,103 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
 /// <summary>
-/// Static helper that plays a flash → fade-out animation on cleared row blocks.
+/// Static helper that plays a middle-out smooth fade animation on cleared row blocks.
 /// Called by GridSystem before destroying the blocks.
 /// </summary>
 public class LineClearAnimation : MonoBehaviour
 {
-    // ─── Animation parameters ─────────────────────────────────────────────────
     [Header("Animation Timings")]
-    public static float FlashDuration = 0.08f;   // per flash cycle
-    public static int   FlashCount    = 3;        // number of flashes
-    public static float FadeDuration  = 0.18f;   // final fade-out
+    public static float MiddleOutDelay = 0.04f;   // Delay step from center
+    public static float FadeDuration  = 0.25f;   // Scale/fade duration
 
     /// <summary>
     /// Plays the full line-clear animation on the given list of transforms
-    /// (each must have a SpriteRenderer). Returns when animation is complete.
     /// </summary>
     public static IEnumerator PlayAll(List<Transform> blocks)
     {
-        // Collect sprite renderers
-        List<SpriteRenderer> renderers = new List<SpriteRenderer>(blocks.Count);
+        if (blocks.Count == 0 || GameManager.Instance == null) yield break;
+
+        // Center calculation
+        float centerX = GameManager.Instance.gridWidth / 2f;
+        
+        Dictionary<Transform, float> distMap = new Dictionary<Transform, float>();
         foreach (var b in blocks)
         {
             if (b == null) continue;
-            SpriteRenderer sr = b.GetComponent<SpriteRenderer>();
-            if (sr != null) renderers.Add(sr);
+            Vector2Int gridPos = GameManager.Instance.GridSystem.WorldToGrid(b.position);
+            distMap[b] = Mathf.Abs(gridPos.x - centerX);
         }
 
-        // ── Phase 1: Flash ────────────────────────────────────────────────────
-        for (int f = 0; f < FlashCount; f++)
+        // Group blocks by distance
+        var groupedBlocks = blocks.Where(b => b != null)
+                                  .OrderBy(b => distMap[b])
+                                  .GroupBy(b => distMap[b])
+                                  .ToList();
+
+        float delay = 0f;
+
+        // Use GameManager as the MonoBehaviour context to spawn concurrent sequences
+        foreach (var group in groupedBlocks)
         {
-            SetAlpha(renderers, 1f);
-            yield return new WaitForSeconds(FlashDuration);
-            SetAlpha(renderers, 0f);
-            yield return new WaitForSeconds(FlashDuration);
+            List<SpriteRenderer> renderers = new List<SpriteRenderer>();
+            foreach (Transform b in group)
+            {
+                SpriteRenderer sr = b.GetComponent<SpriteRenderer>();
+                if (sr != null) renderers.Add(sr);
+            }
+
+            GameManager.Instance.StartCoroutine(MiddleOutSequence(renderers, delay));
+            delay += MiddleOutDelay;
         }
 
-        // ── Phase 2: Fade out ─────────────────────────────────────────────────
+        // Wait for all sequences to finish
+        yield return new WaitForSeconds(delay + FadeDuration);
+    }
+
+    private static IEnumerator MiddleOutSequence(List<SpriteRenderer> renderers, float delay)
+    {
+        if (delay > 0) yield return new WaitForSeconds(delay);
+
         float elapsed = 0f;
+        
+        Dictionary<SpriteRenderer, Vector3> initialScales = new Dictionary<SpriteRenderer, Vector3>();
+        foreach (var sr in renderers)
+        {
+            if (sr != null) initialScales[sr] = sr.transform.localScale;
+        }
+
         while (elapsed < FadeDuration)
         {
             elapsed += Time.deltaTime;
-            float alpha = Mathf.Lerp(1f, 0f, elapsed / FadeDuration);
-            SetAlpha(renderers, alpha);
+            float t = elapsed / FadeDuration;
+            
+            float alpha = Mathf.Lerp(1f, 0f, t);
+            float scaleMult = Mathf.Lerp(1f, 0f, t);
+
+            foreach (var sr in renderers)
+            {
+                if (sr == null) continue;
+                
+                Color c = sr.color;
+                c.a = alpha;
+                sr.color = c;
+
+                sr.transform.localScale = initialScales[sr] * scaleMult;
+            }
+
             yield return null;
         }
 
-        SetAlpha(renderers, 0f);
-    }
-
-    private static void SetAlpha(List<SpriteRenderer> renderers, float alpha)
-    {
         foreach (var sr in renderers)
         {
             if (sr == null) continue;
             Color c = sr.color;
-            c.a = alpha;
+            c.a = 0f;
             sr.color = c;
+            sr.transform.localScale = Vector3.zero;
         }
     }
 }

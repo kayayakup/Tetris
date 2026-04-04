@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Events;
 
 /// <summary>
 /// Manages piece spawning using the 7-bag randomiser.
@@ -10,6 +11,9 @@ public class TetrominoSpawner : MonoBehaviour
     [Tooltip("Leave null: spawner will create pieces from code.")]
     public GameObject tetrominoPrefab;
 
+    public UnityEvent<Tetromino.PieceType> OnNextPieceChanged;
+    public Tetromino.PieceType NextPieceType { get; private set; }
+
     // ─── Bag randomiser ───────────────────────────────────────────────────────
     private int[] _bag     = new int[7];
     private int   _bagIndex = 7; // start past end to force a refill
@@ -18,6 +22,7 @@ public class TetrominoSpawner : MonoBehaviour
     private void Awake()
     {
         ShuffleBag();
+        PrepareNextPiece();
     }
 
     private void ShuffleBag()
@@ -32,10 +37,11 @@ public class TetrominoSpawner : MonoBehaviour
         _bagIndex = 0;
     }
 
-    private Tetromino.PieceType NextType()
+    private void PrepareNextPiece()
     {
         if (_bagIndex >= 7) ShuffleBag();
-        return (Tetromino.PieceType)_bag[_bagIndex++];
+        NextPieceType = (Tetromino.PieceType)_bag[_bagIndex++];
+        OnNextPieceChanged?.Invoke(NextPieceType);
     }
 
     // ─── Spawn ───────────────────────────────────────────────────────────────
@@ -43,7 +49,8 @@ public class TetrominoSpawner : MonoBehaviour
     {
         if (GameManager.Instance.IsGameOver) return;
 
-        Tetromino.PieceType type = NextType();
+        Tetromino.PieceType type = NextPieceType;
+        PrepareNextPiece();
 
         // Spawn position: horizontally centred at top of grid
         int spawnCol = GameManager.Instance.gridWidth / 2;
