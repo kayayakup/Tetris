@@ -22,6 +22,12 @@ public class UIManager : MonoBehaviour
     [Tooltip("Button used to restart the game.")]
     public Button playAgainButton;
 
+    [Header("Instructions Menu")]
+    [Tooltip("Panel displayed when the player first opens the game.")]
+    public GameObject instructionPanel;
+    [Tooltip("Button used to start the game after reading instructions.")]
+    public Button gotItButton;
+
     private void Awake()
     {
         if (GameManager.Instance != null)
@@ -29,6 +35,7 @@ public class UIManager : MonoBehaviour
 
         // Ensure Game Over is hidden at start (Awake happens before most game logic)
         HideGameOverMenu();
+        if (instructionPanel != null) instructionPanel.SetActive(false);
     }
 
     private void Start()
@@ -52,6 +59,12 @@ public class UIManager : MonoBehaviour
                 GameManager.Instance.StartGame();
             });
         }
+
+        // 3. Setup Instruction Confirm Button
+        if (gotItButton != null)
+        {
+            gotItButton.onClick.AddListener(HideInstructions);
+        }
     }
 
     private void UpdateScoreUI(int score)
@@ -64,6 +77,24 @@ public class UIManager : MonoBehaviour
     {
         if (bestScoreText != null) 
             bestScoreText.text = "Best:\n" + best;
+    }
+
+    public void ShowInstructions()
+    {
+        if (instructionPanel != null)
+            instructionPanel.SetActive(true);
+    }
+
+    public void HideInstructions()
+    {
+        if (instructionPanel != null)
+            instructionPanel.SetActive(false);
+        
+        PlayerPrefs.SetInt("HasSeenInstructions", 1);
+        PlayerPrefs.Save();
+
+        if (GameManager.Instance != null && !GameManager.Instance.IsGameOver)
+            GameManager.Instance.PauseGame(false);
     }
 
     public void ShowGameOverMenu()

@@ -11,9 +11,10 @@ public class Tetromino : MonoBehaviour
     public enum PieceType { I = 0, O = 1, T = 2, S = 3, Z = 4, J = 5, L = 6 }
 
     // ─── Shape data ───────────────────────────────────────────────────────────
+    // ─── Shape data ───────────────────────────────────────────────────────────
     // Each entry is an array of (col, row) offsets relative to the rotation pivot
     // Listed as all 4 rotations: [rotation][blockIndex] = {col, row}
-    private static readonly int[][,] Shapes = new int[][,]
+    public static readonly int[][,] Shapes = new int[][,]
     {
         // I
         new int[,] { {-1,0},{0,0},{1,0},{2,0} },
@@ -113,6 +114,29 @@ public class Tetromino : MonoBehaviour
             float spriteSize = sprite.bounds.size.x;
             block.transform.localScale = Vector3.one * (cellSize / spriteSize);
 
+            // Trail Renderer for "Tail" effect
+            TrailRenderer tr = block.AddComponent<TrailRenderer>();
+            tr.time = 0.2f;
+            tr.startWidth = cellSize * 0.75f;
+            tr.endWidth = 0f;
+            tr.material = new Material(Shader.Find("Sprites/Default"));
+
+            // Block'un rengini hypercasual hale getir (daha doygun ve parlak)
+            Color blockColor = sr.color;
+            Color.RGBToHSV(blockColor, out float h, out float s, out float v);
+            s = Mathf.Clamp01(s * 1.3f);   // Doygunluğu %30 artır
+            v = Mathf.Clamp01(v * 1.2f);   // Parlaklığı %20 artır
+            Color trailColor = Color.HSVToRGB(h, s, v);
+
+            Gradient grad = new Gradient();
+            grad.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(trailColor, 0f), new GradientColorKey(trailColor, 1f) },
+                new GradientAlphaKey[] { new GradientAlphaKey(0.5f, 0f), new GradientAlphaKey(0f, 1f) }
+            );
+            tr.colorGradient = grad;
+            tr.sortingOrder = 0;
+            tr.minVertexDistance = 0.05f;
+
             // Build ghost block
             GameObject ghost = new GameObject($"Ghost_{i}");
             ghost.transform.SetParent(transform);
@@ -122,7 +146,7 @@ public class Tetromino : MonoBehaviour
             ghostSr.sortingOrder = 0; // behind real piece
 
             Color ghostColor = sr.color;
-            ghostColor.a = 0.3f; // transluscent
+            ghostColor.a = 0.1f; // transluscent
             ghostSr.color = ghostColor;
 
             ghost.transform.localScale = block.transform.localScale;
@@ -379,6 +403,12 @@ public class Tetromino : MonoBehaviour
         _locked = true;
 
         if (_fallRoutine != null) StopCoroutine(_fallRoutine);
+
+        // Turn off trails so they don't jump when reparented or if grid shifts
+        foreach (Transform child in transform) {
+            TrailRenderer tr = child.GetComponent<TrailRenderer>();
+            if (tr != null) tr.emitting = false;
+        }
 
         // Crucial: Clear ghost before locking real blocks into the grid
         DestroyGhost();

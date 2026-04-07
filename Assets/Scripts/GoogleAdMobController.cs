@@ -1,18 +1,23 @@
 using UnityEngine;
 using GoogleMobileAds.Api;
-using System;
+using System.Collections;
 
 public class GoogleAdMobController : MonoBehaviour
 {
     public static GoogleAdMobController Instance;
 
-    // Banner & Interstitial
     private BannerView bannerView;
     private InterstitialAd interstitial;
 
-    // Replace with your real Ad Unit IDs
-    private string bannerID = "ca-app-pub-6153418042545894/5561270909";
-    private string interstitialID = "ca-app-pub-6153418042545894/2898712457";
+    [Header("Ad Unit IDs")]
+    [SerializeField] private string bannerID = "ca-app-pub-6153418042545894/5561270909";
+    [SerializeField] private string interstitialID = "ca-app-pub-6153418042545894/2898712457";
+
+    private bool isBannerLoaded = false;
+    private bool isInitializing = false;
+
+    private int bannerRetryCount = 0;
+    private const int maxRetry = 10;
 
     private void Awake()
     {
@@ -30,23 +35,22 @@ public class GoogleAdMobController : MonoBehaviour
 
     private void Start()
     {
-        Debug.unityLogger.logEnabled = false;
-        // Initialize AdMob
-        MobileAds.Initialize(initStatus => { });
-
-        LoadBanner();
-        LoadInterstitial();
+        InitializeAds();
     }
 
-
-
-    public void RestartScene()
+    public void InitializeAds()
     {
-        // Initialize AdMob
-        MobileAds.Initialize(initStatus => { });
+        if (isInitializing) return;
 
-        LoadBanner();
-        LoadInterstitial();
+        isInitializing = true;
+
+        MobileAds.Initialize(initStatus =>
+        {
+            isInitializing = false;
+
+            LoadBanner();
+            LoadInterstitial();
+        });
     }
 
     // -----------------------------------------------------------
@@ -54,17 +58,63 @@ public class GoogleAdMobController : MonoBehaviour
     // -----------------------------------------------------------
     public void LoadBanner()
     {
-        // Destroy old banner
-        if (bannerView != null)
-        {
-            bannerView.Destroy();
-        }
+        DestroyBannerAd();
+
+        isBannerLoaded = false;
 
         bannerView = new BannerView(bannerID, AdSize.Banner, AdPosition.Bottom);
 
-        AdRequest request = new AdRequest();
+        // EVENTLER
+        bannerView.OnBannerAdLoaded += () =>
+        {
+            isBannerLoaded = true;
+            bannerRetryCount = 0;
 
+            Debug.Log("Banner Loaded!");
+            bannerView.Show();
+        };
+
+        bannerView.OnBannerAdLoadFailed += (LoadAdError error) =>
+        {
+            isBannerLoaded = false;
+
+            Debug.Log("Banner Load Failed: " + error.GetMessage());
+
+            if (bannerRetryCount < maxRetry)
+            {
+                bannerRetryCount++;
+                float delay = Mathf.Clamp(2f * bannerRetryCount, 2f, 20f);
+
+                Debug.Log("Retry banner in " + delay + " sec...");
+                StartCoroutine(RetryBanner(delay));
+            }
+        };
+
+        AdRequest request = new AdRequest();
         bannerView.LoadAd(request);
+    }
+
+    private IEnumerator RetryBanner(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        LoadBanner();
+    }
+
+    public void EnsureBannerVisible()
+    {
+        if (bannerView == null)
+        {
+            LoadBanner();
+            return;
+        }
+
+        if (!isBannerLoaded)
+        {
+            LoadBanner();
+            return;
+        }
+
+        bannerView.Show();
     }
 
     public void HideBanner()
@@ -73,13 +123,20 @@ public class GoogleAdMobController : MonoBehaviour
             bannerView.Hide();
     }
 
+    public void DestroyBannerAd()
+    {
+        if (bannerView != null)
+        {
+            bannerView.Destroy();
+            bannerView = null;
+        }
+    }
+
     // -----------------------------------------------------------
     // INTERSTITIAL
     // -----------------------------------------------------------
     public void LoadInterstitial()
     {
-
-        // Destroy old ad
         if (interstitial != null)
         {
             interstitial.Destroy();
@@ -91,27 +148,39 @@ public class GoogleAdMobController : MonoBehaviour
             {
                 if (error != null)
                 {
-                    Debug.Log("Interstitial failed to load: " + error.GetMessage());
+                    Debug.Log("Interstitial failed: " + error.GetMessage());
                     return;
                 }
 
                 interstitial = ad;
+                Debug.Log("Interstitial Loaded!");
             });
-        Debug.Log("SLLOADDDAda");
     }
 
-    public void DestroyBannerAd()
-    {
-        bannerView.Destroy();
-    }
     public void ShowInterstitialAd()
     {
-        Debug.Log("SHOW INTERSSS");
         if (interstitial != null && interstitial.CanShowAd())
         {
             interstitial.Show();
-            interstitial = null; // must reload after showing
+            interstitial = null;
             LoadInterstitial();
+        }
+        else
+        {
+            Debug.Log("Interstitial not ready.");
+            LoadInterstitial();
+        }
+    }
+
+    // -----------------------------------------------------------
+    // APP PAUSE / RESUME KONTROL
+    // -----------------------------------------------------------
+    private void OnApplicationPause(bool pause)
+    {
+        if (!pause)
+        {
+            // uygulama geri geldiðinde banner kaybolabiliyor
+            Invoke(nameof(EnsureBannerVisible), 1f);
         }
     }
 }

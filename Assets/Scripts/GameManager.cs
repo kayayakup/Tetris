@@ -14,6 +14,7 @@ public class GameManager : MonoBehaviour
     [Header("Tetromino Sprites (optional – auto-generated if empty)")]
     [Tooltip("Order: I, O, T, S, Z, J, L")]
     public Sprite[] tetrominoSprites = new Sprite[6];
+    public Sprite ghostOutlineSprite;
 
     // ─── Inspector – Grid settings ────────────────────────────────────────────
     [Header("Grid Settings")]
@@ -101,6 +102,12 @@ public class GameManager : MonoBehaviour
         GenerateGridLines();
 
         StartGame();
+
+        if (PlayerPrefs.GetInt("HasSeenInstructions", 0) == 0)
+        {
+            PauseGame(true);
+            UI?.ShowInstructions();
+        }
     }
 
     // ─── Layout computation ───────────────────────────────────────────────────
@@ -140,7 +147,7 @@ public class GameManager : MonoBehaviour
         // Take the LARGER value so both axes fit without overflow.
         // (On a very wide screen, height dominates; on a very tall screen, width dominates.)
         float camSize = Mathf.Max(camSizeForWidth, camSizeForHeight);
-        cam.orthographicSize = camSize + 2;
+        cam.orthographicSize = camSize + 3;
 
         // ── Camera & grid positions ───────────────────────────────────────────
         // Camera centred at (0, 0).
@@ -155,7 +162,7 @@ public class GameManager : MonoBehaviour
             -camSize + safeAreaWorldHeight
         );
 
-        cam.transform.position = new Vector3(0f, 0f, cam.transform.position.z);
+        cam.transform.position = new Vector3(0f, 2.5f, cam.transform.position.z);
 
         Debug.Log($"[GameManager] CamSize={camSize:F3}  GridOrigin={GridOrigin}  " +
                   $"Screen={Screen.width}x{Screen.height}  Aspect={aspect:F3}");
@@ -192,6 +199,33 @@ public class GameManager : MonoBehaviour
                 new Rect(0, 0, size, size),
                 new Vector2(0.5f, 0.5f),
                 size   // pixels-per-unit = size so 1 world unit = 1 cell
+            );
+        }
+
+        // Generate ghost outline sprite if missing
+        if (ghostOutlineSprite == null)
+        {
+            int size = 32;
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Point;
+            Color32[] pixels = new Color32[size * size];
+
+            for (int p = 0; p < pixels.Length; p++)
+            {
+                int px = p % size;
+                int py = p / size;
+                // 2-pixel border for clarity
+                bool border = px < 2 || py < 2 || px >= size - 2 || py >= size - 2;
+                pixels[p] = border ? new Color32(255, 255, 255, 255) : new Color32(0, 0, 0, 0);
+            }
+            tex.SetPixels32(pixels);
+            tex.Apply();
+
+            ghostOutlineSprite = Sprite.Create(
+                tex,
+                new Rect(0, 0, size, size),
+                new Vector2(0.5f, 0.5f),
+                size
             );
         }
     }
@@ -321,6 +355,8 @@ public class GameManager : MonoBehaviour
         Debug.Log("[GameManager] Game Over!");
         UI?.ShowGameOverMenu();
         Audio?.PlayGameOver();
+
+        GoogleAdMobController.Instance.ShowInterstitialAd();
     }
 
     public void PauseGame(bool pause)

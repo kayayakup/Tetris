@@ -14,7 +14,7 @@ public class InputHandler : MonoBehaviour
     // ─── Thresholds ───────────────────────────────────────────────────────────
     [Header("Swipe Settings")]
     [Tooltip("Minimum swipe distance in pixels to register a swipe or step.")]
-    public float minSwipeDistance = 1075f;
+    public float minSwipeDistance = 1f;
 
     [Tooltip("Maximum time in seconds for a gesture to count as a swipe or tap.")]
     public float maxSwipeTime = 0.4f;

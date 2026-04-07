@@ -143,6 +143,16 @@ public class GridSystem : MonoBehaviour
                 if (_cells[x, row] != null)
                     toAnimate.Add(_cells[x, row]);
 
+        // Play line-clear particles and show text
+        VFXManager.Instance.PlayClearParticles(toAnimate, fullRows.Count);
+        
+        float avgY = 0f;
+        foreach (int r in fullRows) avgY += GameManager.Instance.GridToWorld(0, r).y;
+        avgY /= fullRows.Count;
+        // Place text in the horizontal center of the grid, at the average height of cleared lines
+        Vector3 textPos = new Vector3(GameManager.Instance.GridOrigin.x + (Width * GameManager.Instance.CellSize) / 2f, avgY, -2f);
+        VFXManager.Instance.ShowLineClearText(fullRows.Count, textPos);
+
         // Play line-clear animation and wait for it to finish
         yield return StartCoroutine(LineClearAnimation.PlayAll(toAnimate));
 
