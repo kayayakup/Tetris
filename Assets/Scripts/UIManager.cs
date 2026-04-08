@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections;
 
 /// <summary>
 /// Manages all UI displays (HUD, Game Over, High Score).
@@ -13,6 +14,13 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI scoreText;
     [Tooltip("Text element for the highest lifetime score.")]
     public TextMeshProUGUI bestScoreText;
+
+    [Header("UI Animations")]
+    public float punchScaleFactor = 1.2f;
+    public float punchDuration = 0.15f;
+    
+    private Coroutine _scorePunch;
+    private Coroutine _bestPunch;
 
     [Header("Game Over Menu")]
     [Tooltip("Panel displayed when the player loses.")]
@@ -70,13 +78,55 @@ public class UIManager : MonoBehaviour
     private void UpdateScoreUI(int score)
     {
         if (scoreText != null) 
-            scoreText.text = "Score:\n" + score;
+        {
+            // Rich text: Small "SCORE" label above large vibrant number
+            scoreText.text = "<size=60%>SCORE</size>\n<color=#00FFCC>" + score + "</color>";
+            
+            if (_scorePunch != null) StopCoroutine(_scorePunch);
+            _scorePunch = StartCoroutine(PunchScale(scoreText.rectTransform, punchScaleFactor, punchDuration));
+        }
     }
 
     private void UpdateBestScoreUI(int best)
     {
         if (bestScoreText != null) 
-            bestScoreText.text = "Best:\n" + best;
+        {
+            // Rich text: Small "BEST" label above large gold number
+            bestScoreText.text = "<size=60%>BEST</size>\n<color=#FFD700>" + best + "</color>";
+            
+            if (_bestPunch != null) StopCoroutine(_bestPunch);
+            _bestPunch = StartCoroutine(PunchScale(bestScoreText.rectTransform, punchScaleFactor * 1.1f, punchDuration * 1.2f));
+        }
+    }
+
+    private IEnumerator PunchScale(RectTransform rt, float scale, float duration)
+    {
+        if (rt == null) yield break;
+
+        Vector3 startScale = Vector3.one;
+        Vector3 targetScale = Vector3.one * scale;
+
+        // Punch Up
+        float elapsed = 0;
+        float halfDuration = duration * 0.5f;
+
+        while (elapsed < halfDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            rt.localScale = Vector3.Lerp(startScale, targetScale, elapsed / halfDuration);
+            yield return null;
+        }
+
+        // Return to Normal
+        elapsed = 0;
+        while (elapsed < halfDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            rt.localScale = Vector3.Lerp(targetScale, startScale, elapsed / halfDuration);
+            yield return null;
+        }
+
+        rt.localScale = startScale;
     }
 
     public void ShowInstructions()
@@ -101,12 +151,14 @@ public class UIManager : MonoBehaviour
     {
         if (gameOverPanel != null)
         {
+            GoogleAdMobController.Instance.ShowInterstitialAd();
             gameOverPanel.SetActive(true);
 
             // Update the summary score in the game over panel
             if (gameOverScoreText != null && GameManager.Instance.Score != null)
             {
-                gameOverScoreText.text = GameManager.Instance.Score.Score.ToString();
+                gameOverScoreText.text = "<color=#00FFCC>" + GameManager.Instance.Score.Score.ToString() + "</color>";
+                StartCoroutine(PunchScale(gameOverScoreText.rectTransform, 1.5f, 0.4f));
             }
         }
     }

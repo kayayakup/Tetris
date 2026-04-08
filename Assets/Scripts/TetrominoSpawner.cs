@@ -47,6 +47,7 @@ public class TetrominoSpawner : MonoBehaviour
     // ─── Spawn ───────────────────────────────────────────────────────────────
     public void SpawnNext()
     {
+        GoogleAdMobController.Instance.CheckAndShowBanner();
         if (GameManager.Instance.IsGameOver) return;
 
         Tetromino.PieceType type = NextPieceType;

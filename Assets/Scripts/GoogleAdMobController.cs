@@ -1,23 +1,21 @@
 using UnityEngine;
 using GoogleMobileAds.Api;
-using System.Collections;
+using System;
 
 public class GoogleAdMobController : MonoBehaviour
 {
     public static GoogleAdMobController Instance;
 
+    // Banner & Interstitial
     private BannerView bannerView;
     private InterstitialAd interstitial;
 
-    [Header("Ad Unit IDs")]
-    [SerializeField] private string bannerID = "ca-app-pub-6153418042545894/5561270909";
-    [SerializeField] private string interstitialID = "ca-app-pub-6153418042545894/2898712457";
-
+    // Reklamın yüklenip yüklenmediğini takip ettiğimiz değişken
     private bool isBannerLoaded = false;
-    private bool isInitializing = false;
 
-    private int bannerRetryCount = 0;
-    private const int maxRetry = 10;
+    // DİKKAT: Geliştirme aşamasında kendi gerçek ID'lerin yerine Google Test ID'lerini kullanmalısın!
+    private string bannerID = "";
+    private string interstitialID = "";
 
     private void Awake()
     {
@@ -35,19 +33,10 @@ public class GoogleAdMobController : MonoBehaviour
 
     private void Start()
     {
-        InitializeAds();
-    }
-
-    public void InitializeAds()
-    {
-        if (isInitializing) return;
-
-        isInitializing = true;
-
-        MobileAds.Initialize(initStatus =>
+        // 1. ÇÖZÜM: AdMob'un başlatılması zaman alır. Yükleme komutlarını 
+        // SDK'nın "ben hazırlandım" dediği bu callback bloğunun içine alıyoruz.
+        MobileAds.Initialize(initStatus => 
         {
-            isInitializing = false;
-
             LoadBanner();
             LoadInterstitial();
         });
@@ -58,69 +47,57 @@ public class GoogleAdMobController : MonoBehaviour
     // -----------------------------------------------------------
     public void LoadBanner()
     {
-        DestroyBannerAd();
-
-        isBannerLoaded = false;
+        // Destroy old banner
+        if (bannerView != null)
+        {
+            bannerView.Destroy();
+        }
 
         bannerView = new BannerView(bannerID, AdSize.Banner, AdPosition.Bottom);
 
-        // EVENTLER
+        // Banner başarıyla yüklendiğinde tetiklenir
         bannerView.OnBannerAdLoaded += () =>
         {
+            Debug.Log("Banner başarıyla yüklendi.");
             isBannerLoaded = true;
-            bannerRetryCount = 0;
-
-            Debug.Log("Banner Loaded!");
-            bannerView.Show();
         };
 
+        // Banner yüklenemediğinde tetiklenir
         bannerView.OnBannerAdLoadFailed += (LoadAdError error) =>
         {
+            Debug.LogError("Banner yüklenemedi: " + error.GetMessage());
             isBannerLoaded = false;
 
-            Debug.Log("Banner Load Failed: " + error.GetMessage());
-
-            if (bannerRetryCount < maxRetry)
-            {
-                bannerRetryCount++;
-                float delay = Mathf.Clamp(2f * bannerRetryCount, 2f, 20f);
-
-                Debug.Log("Retry banner in " + delay + " sec...");
-                StartCoroutine(RetryBanner(delay));
-            }
+            // 2. ÇÖZÜM: Eğer reklam gelmezse sistemi kendi haline bırakmıyoruz.
+            // 5 saniye sonra CheckAndShowBanner metodunu çağırarak tekrar denemesini sağlıyoruz.
+            Invoke(nameof(CheckAndShowBanner), 5f);
         };
 
         AdRequest request = new AdRequest();
         bannerView.LoadAd(request);
     }
 
-    private IEnumerator RetryBanner(float delay)
+    // İstediğin kontrol metodu: Gelmiş mi kontrol et, gelmediyse yükle/göster
+    public void CheckAndShowBanner()
     {
-        yield return new WaitForSeconds(delay);
-        LoadBanner();
-    }
-
-    public void EnsureBannerVisible()
-    {
-        if (bannerView == null)
+        if (bannerView == null || !isBannerLoaded)
         {
-            LoadBanner();
-            return;
+            Debug.Log("Banner henüz gelmemiş veya null. Yeniden yükleniyor...");
+            LoadBanner(); // Yükleme isteği atar, yüklendiğinde otomatik görünür.
         }
-
-        if (!isBannerLoaded)
+        else
         {
-            LoadBanner();
-            return;
+            Debug.Log("Banner zaten yüklü, gösteriliyor.");
+            bannerView.Show(); 
         }
-
-        bannerView.Show();
     }
 
     public void HideBanner()
     {
         if (bannerView != null)
+        {
             bannerView.Hide();
+        }
     }
 
     public void DestroyBannerAd()
@@ -129,6 +106,7 @@ public class GoogleAdMobController : MonoBehaviour
         {
             bannerView.Destroy();
             bannerView = null;
+            isBannerLoaded = false; // Yıkıldığında durumu sıfırla
         }
     }
 
@@ -137,6 +115,7 @@ public class GoogleAdMobController : MonoBehaviour
     // -----------------------------------------------------------
     public void LoadInterstitial()
     {
+        // Destroy old ad
         if (interstitial != null)
         {
             interstitial.Destroy();
@@ -148,12 +127,14 @@ public class GoogleAdMobController : MonoBehaviour
             {
                 if (error != null)
                 {
-                    Debug.Log("Interstitial failed: " + error.GetMessage());
+                    Debug.Log("Interstitial failed to load: " + error.GetMessage());
+                    
+                    // Interstitial için de garantiye almak istersen 10 saniye sonra tekrar deneyebilirsin:
+                    Invoke(nameof(LoadInterstitial), 10f);
                     return;
                 }
 
                 interstitial = ad;
-                Debug.Log("Interstitial Loaded!");
             });
     }
 
@@ -162,25 +143,8 @@ public class GoogleAdMobController : MonoBehaviour
         if (interstitial != null && interstitial.CanShowAd())
         {
             interstitial.Show();
-            interstitial = null;
+            interstitial = null; // must reload after showing
             LoadInterstitial();
-        }
-        else
-        {
-            Debug.Log("Interstitial not ready.");
-            LoadInterstitial();
-        }
-    }
-
-    // -----------------------------------------------------------
-    // APP PAUSE / RESUME KONTROL
-    // -----------------------------------------------------------
-    private void OnApplicationPause(bool pause)
-    {
-        if (!pause)
-        {
-            // uygulama geri geldi�inde banner kaybolabiliyor
-            Invoke(nameof(EnsureBannerVisible), 1f);
         }
     }
 }

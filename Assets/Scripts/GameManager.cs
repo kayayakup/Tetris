@@ -356,7 +356,6 @@ public class GameManager : MonoBehaviour
         UI?.ShowGameOverMenu();
         Audio?.PlayGameOver();
 
-        GoogleAdMobController.Instance.ShowInterstitialAd();
     }
 
     public void PauseGame(bool pause)

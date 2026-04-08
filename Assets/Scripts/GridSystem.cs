@@ -11,7 +11,7 @@ public class GridSystem : MonoBehaviour
     // 2-D array of locked-in cell transforms (null = empty)
     private Transform[,] _cells;
 
-    private int Width  => GameManager.Instance.gridWidth;
+    private int Width => GameManager.Instance.gridWidth;
     private int Height => GameManager.Instance.gridHeight;
 
     // ─── Init ─────────────────────────────────────────────────────────────────
@@ -57,8 +57,8 @@ public class GridSystem : MonoBehaviour
     {
         EnsureGrid();
         if (x < 0 || x >= Width) return false; // wall collision
-        if (y < 0)               return false; // floor collision
-        if (y >= Height)         return true;  // above grid is fine
+        if (y < 0) return false; // floor collision
+        if (y >= Height) return true;  // above grid is fine
         return _cells[x, y] == null;
     }
 
@@ -145,7 +145,7 @@ public class GridSystem : MonoBehaviour
 
         // Play line-clear particles and show text
         VFXManager.Instance.PlayClearParticles(toAnimate, fullRows.Count);
-        
+
         float avgY = 0f;
         foreach (int r in fullRows) avgY += GameManager.Instance.GridToWorld(0, r).y;
         avgY /= fullRows.Count;
@@ -196,7 +196,7 @@ public class GridSystem : MonoBehaviour
                     // Move world position down one cell
                     block.position += Vector3.down * GameManager.Instance.CellSize;
                     _cells[x, y - 1] = block;
-                    _cells[x, y]     = null;
+                    _cells[x, y] = null;
                 }
             }
         }
@@ -205,8 +205,8 @@ public class GridSystem : MonoBehaviour
     // ─── Coordinate helpers ───────────────────────────────────────────────────
     public Vector2Int WorldToGrid(Vector3 worldPos)
     {
-        Vector2 origin   = GameManager.Instance.GridOrigin;
-        float   cellSize = GameManager.Instance.CellSize;
+        Vector2 origin = GameManager.Instance.GridOrigin;
+        float cellSize = GameManager.Instance.CellSize;
 
         int gx = Mathf.FloorToInt((worldPos.x - origin.x) / cellSize);
         int gy = Mathf.FloorToInt((worldPos.y - origin.y) / cellSize);
