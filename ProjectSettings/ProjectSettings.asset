@@ -13,7 +13,7 @@ PlayerSettings:
   useOnDemandResources: 0
   accelerometerFrequency: 60
   companyName: Penc Games
-  productName: Block Puzzle Tetris
+  productName: Block Slide
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.43529415, g: 0.16078432, b: 0.42352945, a: 1}
@@ -168,7 +168,7 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Android: com.PencGames.BlockPuzzleTetris
+    Android: com.PencGames.BlockSlide
     Standalone: com.Unity-Technologies.com.unity.template.urp-blank
     iPhone: com.Unity-Technologies.com.unity.template.urp-blank
   buildNumber:
@@ -176,7 +176,7 @@ PlayerSettings:
     VisionOS: 0
     iPhone: 0
     tvOS: 0
-  overrideDefaultApplicationIdentifier: 1
+  overrideDefaultApplicationIdentifier: 0
   AndroidBundleVersionCode: 6
   AndroidMinSdkVersion: 25
   AndroidTargetSdkVersion: 0
@@ -273,7 +273,7 @@ PlayerSettings:
   AndroidAllowedArchitectures: -13
   AndroidSplashScreenScale: 0
   androidSplashScreen: {fileID: 0}
-  AndroidKeystoreName: C:/Users/yakup/OneDrive/Belgeler/GitHub/Keystores/BlockPuzzleTetris/user.keystore
+  AndroidKeystoreName: C:/Users/yakup/OneDrive/Belgeler/GitHub/Keystores/BlockSlide/game.keystore
   AndroidKeyaliasName: penc games
   AndroidEnableArmv9SecurityFeatures: 0
   AndroidEnableArm64MTE: 0
@@ -302,7 +302,7 @@ PlayerSettings:
   - m_BuildTarget: 
     m_Icons:
     - serializedVersion: 2
-      m_Icon: {fileID: 2800000, guid: f70b7c618771b19498e14253e83907c1, type: 3}
+      m_Icon: {fileID: 2800000, guid: 620f5b154073c084daa83b405b5a5490, type: 3}
       m_Width: 128
       m_Height: 128
       m_Kind: 0
